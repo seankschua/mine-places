@@ -40,7 +40,7 @@ public class TripAdvisor {
         try {
 
             //Scanner sc = new Scanner(file);
-            br = new BufferedReader(new InputStreamReader(new FileInputStream(file), "UTF8"));
+            br = new BufferedReader(new InputStreamReader(new FileInputStream(file), "UTF-8"));
             br.readLine();
             //sc.nextLine();
             String nextLine = null;
@@ -68,7 +68,7 @@ public class TripAdvisor {
         int counter = 0;
         
         try (Writer writer = new BufferedWriter(new OutputStreamWriter(
-        		new FileOutputStream("data/mine.json"), "utf-8"))) {
+        		new FileOutputStream("data/mine.json"), "UTF-8"))) {
         	
         	String currentPropertyName = "start";
         	Property currentProperty = null;
@@ -98,7 +98,7 @@ public class TripAdvisor {
         			System.out.println(currentPropertyName);
         			//writer.write(currentProperty);
         			//writer.write("\n");
-        			currentProperty = new Property(currentPropertyName);
+        			currentProperty = new Property(currentPropertyName.replace("\\", ""));
         			propertyList.add(currentProperty);
             		for (String entityName : currentPropertyEntityScore.keySet()){
             			
@@ -261,8 +261,13 @@ public class TripAdvisor {
         		
             }
         	//writer.write("Total lines read: " + counter);
-        	Gson gson = new GsonBuilder().setPrettyPrinting().create();
+        	Gson gson = new GsonBuilder().setPrettyPrinting().disableHtmlEscaping().create();
+        	//Gson gson = new GsonBuilder().setPrettyPrinting().create();
+        	//Gson gson = new Gson();
+        	//System.out.println(gson.toJson(propertyList));
+        	//System.out.println(propertyList.get(3).getName());
         	writer.write(gson.toJson(propertyList));
+        	//writer.write(propertyList.get(3).getName());
         	writer.close();
         	System.out.println("TripAdvisor() compeleted, Total lines read: " + counter);
         }
