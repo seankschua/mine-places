@@ -17,6 +17,9 @@ import java.util.Map;
 import java.util.Scanner;
 import java.util.TreeMap;
 
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
+
 import edu.stanford.nlp.tagger.maxent.MaxentTagger;
  
 public class TripAdvisor {
@@ -65,11 +68,14 @@ public class TripAdvisor {
         int counter = 0;
         
         try (Writer writer = new BufferedWriter(new OutputStreamWriter(
-        		new FileOutputStream("data/left_oneperreview.txt"), "utf-8"))) {
+        		new FileOutputStream("data/mine.json"), "utf-8"))) {
         	
-        	String currentProperty = "start";
+        	String currentPropertyName = "start";
+        	Property currentProperty = null;
         	Map<String,Integer> currentPropertyEntityScore = new TreeMap<String,Integer>(String.CASE_INSENSITIVE_ORDER);
         	Map<String,Integer> currentPropertyEntityFreq = new TreeMap<String,Integer>(String.CASE_INSENSITIVE_ORDER);
+        	
+        	ArrayList<Property> propertyList = new ArrayList<Property>();
         	
         	for (String review : input){
         		counter++;
@@ -85,65 +91,69 @@ public class TripAdvisor {
         		String taggedReview = tagger.tagString(review);
         		
         		//System.out.println(review);
-        		if (currentProperty=="start"){
-        			currentProperty = lineProperty;      			
-        		} else if (review.equals("end") || !lineProperty.equals(currentProperty)){
+        		if (currentPropertyName=="start"){
+        			currentPropertyName = lineProperty;      			
+        		} else if (review.equals("end") || !lineProperty.equals(currentPropertyName)){
         			//write stuff to file
-        			System.out.println(currentProperty);
-        			writer.write(currentProperty);
-        			writer.write("\n");
-            		for (String entity : currentPropertyEntityScore.keySet()){
+        			System.out.println(currentPropertyName);
+        			//writer.write(currentProperty);
+        			//writer.write("\n");
+        			currentProperty = new Property(currentPropertyName);
+        			propertyList.add(currentProperty);
+            		for (String entityName : currentPropertyEntityScore.keySet()){
             			
             			//repeated threshold condition, inverted
-            			if(!(currentPropertyEntityFreq.get(entity)>0 && currentPropertyEntityScore.get(entity)/currentPropertyEntityFreq.get(entity) >= 5 && currentPropertyEntityScore.get(entity)>50)){
+            			if(!(currentPropertyEntityFreq.get(entityName)>0 && currentPropertyEntityScore.get(entityName)/currentPropertyEntityFreq.get(entityName) >= 5 && currentPropertyEntityScore.get(entityName)>50)){
             				continue;
             			}
             			
             			//lumping misspellings or combining variations here
             			//this will probably eat the most processing time
-            			for (String entity2 : currentPropertyEntityScore.keySet()){
+            			for (String entityName2 : currentPropertyEntityScore.keySet()){
             				
             				//weakness here is a snowball -- if there's a 3, 4, 5; the middle will prevail.
-            				if(currentPropertyEntityFreq.get(entity)==0 || currentPropertyEntityFreq.get(entity2)==0 || entity.equalsIgnoreCase(entity2)){
+            				if(currentPropertyEntityFreq.get(entityName)==0 || currentPropertyEntityFreq.get(entityName2)==0 || entityName.equalsIgnoreCase(entityName2)){
                 				continue;
                 			}
             				
-            				if(StringSimilarity.similarity(entity,entity2)>=0.8){
-            					System.out.println(entity + " VS " + entity2);
-            					int entityFreq = currentPropertyEntityFreq.get(entity);
-            					int entityFreq2 = currentPropertyEntityFreq.get(entity2);
+            				if(StringSimilarity.similarity(entityName,entityName2)>=0.8){
+            					System.out.println(entityName + " VS " + entityName2);
+            					int entityFreq = currentPropertyEntityFreq.get(entityName);
+            					int entityFreq2 = currentPropertyEntityFreq.get(entityName2);
             					int entityFreqSum = entityFreq + entityFreq2;
-            					int entityFreqScore = currentPropertyEntityScore.get(entity);
-            					int entityFreqScore2 = currentPropertyEntityScore.get(entity2);
+            					int entityFreqScore = currentPropertyEntityScore.get(entityName);
+            					int entityFreqScore2 = currentPropertyEntityScore.get(entityName2);
             					int entityFreqScoreSum = entityFreqScore + entityFreqScore2;
             					
                 				if(entityFreq>=entityFreq2){
-                					System.out.println(entity + " WINS");
-                					currentPropertyEntityFreq.put(entity, entityFreqSum);
-                					currentPropertyEntityScore.put(entity, entityFreqScoreSum);
-                					currentPropertyEntityFreq.put(entity2,0);
-                					currentPropertyEntityScore.put(entity2,0);
+                					System.out.println(entityName + " WINS");
+                					currentPropertyEntityFreq.put(entityName, entityFreqSum);
+                					currentPropertyEntityScore.put(entityName, entityFreqScoreSum);
+                					currentPropertyEntityFreq.put(entityName2,0);
+                					currentPropertyEntityScore.put(entityName2,0);
                 				} else {
-                					System.out.println(entity2 + " WINS");
-                					currentPropertyEntityFreq.put(entity2, entityFreqSum);
-                					currentPropertyEntityScore.put(entity2, entityFreqScoreSum);
-                					currentPropertyEntityFreq.put(entity,0);
-                					currentPropertyEntityScore.put(entity,0);
+                					System.out.println(entityName2 + " WINS");
+                					currentPropertyEntityFreq.put(entityName2, entityFreqSum);
+                					currentPropertyEntityScore.put(entityName2, entityFreqScoreSum);
+                					currentPropertyEntityFreq.put(entityName,0);
+                					currentPropertyEntityScore.put(entityName,0);
                 				}
                 			}
             			}
             			
             			//threshold here
             			//if (currentPropertyEntityScore.get(entity)>50){
-            			if (currentPropertyEntityFreq.get(entity)>0 && currentPropertyEntityScore.get(entity)/currentPropertyEntityFreq.get(entity) >= 5 && currentPropertyEntityScore.get(entity)>50){
-            				writer.write(entity + " - " + currentPropertyEntityScore.get(entity) + " - " + currentPropertyEntityFreq.get(entity));
-            				writer.write("\n");
+            			if (currentPropertyEntityFreq.get(entityName)>0 && currentPropertyEntityScore.get(entityName)/currentPropertyEntityFreq.get(entityName) >= 5 && currentPropertyEntityScore.get(entityName)>50){
+            				//writer.write(entity + " - " + currentPropertyEntityScore.get(entity) + " - " + currentPropertyEntityFreq.get(entity));
+            				//writer.write("\n");
+            				currentProperty.addEntity(new Entity(entityName,currentPropertyEntityFreq.get(entityName),currentPropertyEntityScore.get(entityName)));
             			}
             		}
-            		writer.write("WRITTEN AT " + counter + "\n");
-            		writer.write("\n\n\n");
+            		//writer.write("WRITTEN AT " + counter + "\n");
+            		//writer.write("\n\n\n");
+            		currentProperty.setInputEnd(counter);
         			
-        			currentProperty = lineProperty;
+            		currentPropertyName = lineProperty;
         			currentPropertyEntityScore = new TreeMap<String,Integer>(String.CASE_INSENSITIVE_ORDER);
         			currentPropertyEntityFreq = new TreeMap<String,Integer>(String.CASE_INSENSITIVE_ORDER);
         		}
@@ -187,7 +197,7 @@ public class TripAdvisor {
         				//phraseKey = phraseKey.replaceAll("[^a-zA-Z0-9\\s]", "");
         				
         				//check if phraseKey is part of the reviewed property name, cut it out if yes
-        				if (currentProperty.toLowerCase().indexOf(phraseKey.toLowerCase())==-1){
+        				if (currentPropertyName.toLowerCase().indexOf(phraseKey.toLowerCase())==-1){
         					//adding to the line's collection of nouns/nounphrases
         					//using TreeMap to bypass Case issues
         					//System.out.println("phraseKey is " + phraseKey);
@@ -250,7 +260,11 @@ public class TripAdvisor {
         		//writer.write("\n");
         		
             }
-        	writer.write("Total lines read: " + counter);
+        	//writer.write("Total lines read: " + counter);
+        	Gson gson = new GsonBuilder().setPrettyPrinting().create();
+        	writer.write(gson.toJson(propertyList));
+        	writer.close();
+        	System.out.println("TripAdvisor() compeleted, Total lines read: " + counter);
         }
         //need an extra blank line at the end or will miss last property and hashmap
  
